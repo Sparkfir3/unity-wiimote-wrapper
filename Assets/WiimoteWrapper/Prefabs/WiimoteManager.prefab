@@ -1,0 +1,87 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4837727485559937862
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4837727485559937861}
+  - component: {fileID: 4837727485559937860}
+  - component: {fileID: 4837727485559937863}
+  m_Layer: 0
+  m_Name: WiimoteManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4837727485559937861
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4837727485559937862}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &4837727485559937860
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4837727485559937862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b3cb44568d1c5d548bbd9ce19e4d0067, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  <MaxPlayerCount>k__BackingField: 4
+  defaultLightSettings:
+    playerNumber: -1
+    led1: 1
+    led2: 1
+    led3: 1
+    led4: 1
+  wiimoteLights:
+  - playerNumber: 0
+    led1: 1
+    led2: 0
+    led3: 0
+    led4: 0
+  - playerNumber: 1
+    led1: 0
+    led2: 1
+    led3: 0
+    led4: 0
+  - playerNumber: 2
+    led1: 0
+    led2: 0
+    led3: 1
+    led4: 0
+  - playerNumber: 3
+    led1: 0
+    led2: 0
+    led3: 0
+    led4: 1
+--- !u!114 &4837727485559937863
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4837727485559937862}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2f217e21f01a43428413a48ff495a45, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
