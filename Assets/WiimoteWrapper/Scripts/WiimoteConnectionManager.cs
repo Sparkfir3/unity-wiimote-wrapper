@@ -1,4 +1,3 @@
-using Sparkfire.Utility;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,7 +37,7 @@ namespace Sparkfire.WiimoteWrapper {
         private List<WiimoteLightSettings> wiimoteLights;
 
         // --- Runtime Data ---
-        public SerializedDictionary<int, Wiimote> PlayerWiimotes { get; private set; }
+        public Dictionary<int, Wiimote> PlayerWiimotes { get; private set; }
 
         // ------------------------------------------------------------------------------------
 
@@ -133,7 +132,7 @@ namespace Sparkfire.WiimoteWrapper {
         // ------------------------------------------------------------------------------------
 
         #region [Public] Get/Read Data
-
+        
         public List<int> AllPlayersWithoutAWiimote => PlayerWiimotes.Where(x => x.Value == null).Select(x => x.Key).ToList();
 
         public List<Wiimote> AllWiimotesWithoutAPlayer => WiimoteManager.Wiimotes.Where(x => x != null && !PlayerWiimotes.ContainsValue(x)).ToList();

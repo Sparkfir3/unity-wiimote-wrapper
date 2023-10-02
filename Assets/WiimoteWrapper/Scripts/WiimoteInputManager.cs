@@ -1,6 +1,7 @@
 using Sparkfire.Utility;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using WiimoteApi;
 
@@ -36,6 +37,9 @@ namespace Sparkfire.WiimoteWrapper {
         #endregion
 
         // ------------------------------------------
+
+        [SerializeField]
+        private bool debugMode;
 
         // --- Internal Data ---
         private SerializedDictionary<int, WiimoteButtonEvents> playerWiimoteButtonEvents;
@@ -75,34 +79,26 @@ namespace Sparkfire.WiimoteWrapper {
         #region [Public] Get Button
 
         public bool GetButton(int playerNumber, WiimoteButton button) {
-            if(!playerWiimoteButtonEvents.ContainsKey(playerNumber)) {
-                Debug.LogError($"Attempted to get the status of button {button} for player {playerNumber}, but that player number does not exist!");
+            if(!ValidPlayereNumber(playerNumber))
                 return false;
-            }
             return playerWiimoteButtonEvents[playerNumber].buttonHeld[button];
         }
 
         public bool GetButtonDown(int playerNumber, WiimoteButton button) {
-            if(!playerWiimoteButtonEvents.ContainsKey(playerNumber)) {
-                Debug.LogError($"Attempted to get the status of button {button} for player {playerNumber}, but that player number does not exist!");
+            if(!ValidPlayereNumber(playerNumber))
                 return false;
-            }
             return playerWiimoteButtonEvents[playerNumber].buttonDown[button];
         }
 
         public bool GetButtonUp(int playerNumber, WiimoteButton button) {
-            if(!playerWiimoteButtonEvents.ContainsKey(playerNumber)) {
-                Debug.LogError($"Attempted to get the status of button {button} for player {playerNumber}, but that player number does not exist!");
+            if(!ValidPlayereNumber(playerNumber))
                 return false;
-            }
             return playerWiimoteButtonEvents[playerNumber].buttonReleased[button];
         }
 
         #endregion
 
-        // ---------------------
-
-        #region [Private] Get Button Calculations
+        #region [Private] Get Button Logic
 
         private bool GetCorrespondingWiimoteButton(Wiimote wiimote, in WiimoteButton button) {
             switch(button) {
@@ -156,23 +152,164 @@ namespace Sparkfire.WiimoteWrapper {
 
         #region [Public] Get Axis
 
-        // TODO
+        public float GetNunchuckJoystickHorizontal(int playerNumber) {
+            if(!ValidPlayereNumber(playerNumber))
+                return 0f;
+            return GetNunchuckAxis(WiimoteConnectionManager.Instance.PlayerWiimotes[playerNumber], horizontal: true);
+        }
+
+        public float GetNunchuckJoystickVertical(int playerNumber) {
+            if(!ValidPlayereNumber(playerNumber))
+                return 0f;
+            return GetNunchuckAxis(WiimoteConnectionManager.Instance.PlayerWiimotes[playerNumber], horizontal: false);
+        }
+
+        public Vector2 GetNunchuckJoystick2D(int playerNumber) {
+            if(!ValidPlayereNumber(playerNumber))
+                return default;
+            return new Vector2(GetNunchuckAxis(WiimoteConnectionManager.Instance.PlayerWiimotes[playerNumber], horizontal: true),
+                GetNunchuckAxis(WiimoteConnectionManager.Instance.PlayerWiimotes[playerNumber], horizontal: false));
+        }
+
+        #endregion
+
+        #region [Private] Get Axis Logic
+
+        private float GetNunchuckAxis(Wiimote wiimote, bool horizontal = true) {
+            if(wiimote.current_ext != ExtensionController.NUNCHUCK)
+                return 0f;
+
+            NunchuckData data = wiimote.Nunchuck;
+            int value;
+            if(horizontal) {
+                value = data.stick[0]; // Horizontal - General range is 35-228
+            } else {
+                value = data.stick[1]; // Vertical - General range is 27-220
+            }
+
+            // Check if input mode was not setup - if not, setup and return 0 (need to try again)
+            if(value == 0) {
+                wiimote.SendDataReportMode(InputDataType.REPORT_BUTTONS_ACCEL_EXT16);
+                return 0f;
+            }
+
+            // Center is around 128
+            if(value > 112 && value < 144)
+                return 0f;
+
+            // Adjust horizontal to be in similar range as vertical
+            if(horizontal)
+                value -= 8;
+
+            // Check for upper/lower bounds
+            if(value > 200)
+                return 1f;
+            else if(value < 47)
+                return -1f;
+
+            // Return normalized value
+            float normalizedValue = (value - 128f) / 128f;
+            return Mathf.Clamp(normalizedValue, -1f, 1f);
+        }
 
         #endregion
 
         // ------------------------------------------------------------------------------------
 
-        #region [Public] Get Pointer
+        #region [Public] Pointer
 
-        // TODO
+        public Vector2 GetPointerScreenPosition(int playerNumber) {
+            if(!ValidPlayereNumber(playerNumber))
+                return default;
+            if(!WiimoteConnectionManager.Instance.PlayerWiimotes.TryGetValue(playerNumber, out Wiimote wiimote) || wiimote == null) {
+                if(debugMode)
+                    Debug.LogWarning($"Attempting to read pointer position for player {playerNumber}, but that player does not have a wiimote assigned!");
+                return Vector2.zero;
+            }
+
+            float[] points = wiimote.Ir.GetPointingPosition();
+            return new Vector2(points[0], points[1]);
+        }
+
+        public void SetRectTransformToPointerScreenPosition(int playerNumber, RectTransform rectTransform, bool smoothed = true) {
+            Vector2 position = GetPointerScreenPosition(playerNumber);
+            if(smoothed)
+                position = SmoothPointerPos(rectTransform.anchorMin, position);
+            rectTransform.anchorMin = position;
+            rectTransform.anchorMax = position;
+        }
+
+        #endregion
+
+        #region [Private] Pointer Logic
+
+        /// <summary>
+        /// Returns a lerped/smoothed position for the pointer, to smooth out jittery movement
+        /// </summary>
+        /// <param name="basePos">The pointer's current position</param>
+        /// <param name="newPos">The position the pointer is attempting to go towards</param>
+        private Vector3 SmoothPointerPos(Vector3 basePos, Vector3 newPos) {
+            float distance = (newPos - basePos).magnitude;
+
+            // TODO - make these adjustable settings
+            if(distance < 0.03f)
+                return Vector2.Lerp(basePos, newPos, 0.3f);
+            else if(distance < 0.05f)
+                return Vector2.Lerp(basePos, newPos, 0.7f);
+            return newPos;
+        }
 
         #endregion
 
         // ------------------------------------------------------------------------------------
 
-        #region [Public] Get Motion Controls
+        #region [Public] Accelerometer/Motion Controls
 
-        // TODO
+        /// <summary>
+        /// Returns the wiimote's acceleration data as a vector, normalized.
+        /// </summary>
+        public Vector3 GetAccelVector(int playerNumber) {
+            return GetAccelVectorRaw(playerNumber).normalized;
+        }
+
+        /// <summary>
+        /// Returns the wiimote's acceleration data as a vector.
+        /// </summary>
+        public Vector3 GetAccelVectorRaw(int playerNumber) {
+            if(!ValidPlayereNumber(playerNumber))
+                return default;
+            if(!WiimoteConnectionManager.Instance.PlayerWiimotes.TryGetValue(playerNumber, out Wiimote wiimote) || wiimote == null) {
+                Debug.LogError($"Attempted to get accelerometer vector for player {playerNumber}, but that player does not have a wiimote assigned!");
+                return default;
+            }
+
+            float accel_x;
+            float accel_y;
+            float accel_z;
+
+            float[] accel = wiimote.Accel.GetCalibratedAccelData();
+            accel_x = accel[0];
+            accel_y = accel[2];
+            accel_z = accel[1];
+
+            return new Vector3(accel_x, accel_y, accel_z);
+        }
+
+        #endregion
+
+        // ------------------------------------------------------------------------------------
+
+        #region Other
+
+        private bool ValidPlayereNumber(int playerNumber) {
+            if(playerNumber >= WiimoteConnectionManager.Instance.MaxPlayerCount) {
+                Debug.LogError($"Attempted to read an input for player {playerNumber}, but that player number is out of range and invalid!\n" +
+                    $"The maximum player count is {WiimoteConnectionManager.Instance.MaxPlayerCount} (set in WiimoteConnectionManager), " +
+                        $"meaning the highest valid number is {WiimoteConnectionManager.Instance.MaxPlayerCount - 1}");
+                return false;
+            }
+            return true;
+        }
 
         #endregion
 
