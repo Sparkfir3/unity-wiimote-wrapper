@@ -35,7 +35,7 @@ namespace Sparkfire.WiimoteWrapper {
         [SerializeField]
         [Tooltip("Controls which lights are enabled for each player number")]
         private List<WiimoteLightSettings> wiimoteLights;
-
+        
         // --- Runtime Data ---
         public Dictionary<int, Wiimote> PlayerWiimotes { get; private set; }
 
@@ -68,7 +68,7 @@ namespace Sparkfire.WiimoteWrapper {
         #endregion
 
         // ------------------------------------------------------------------------------------
-
+        
         #region [Public] Setup and Assignment
 
         public void FindAndSetupWiimotes(in bool assignDefaultLights = true) {
@@ -92,15 +92,15 @@ namespace Sparkfire.WiimoteWrapper {
             }
         }
 
-        public void AssignWiimoteToPlayer(int playerNumber, Wiimote wiimote) {
+        public bool AssignWiimoteToPlayer(in int playerNumber, Wiimote wiimote) {
             if(playerNumber >= MaxPlayerCount) {
                 Debug.LogError($"Failed to assign wiimote to player number {playerNumber}, as it is over the set player limit of {MaxPlayerCount}!");
-                return;
+                return false;
             }
             if(wiimote == null) {
                 Debug.LogError($"Assigning a wiimote to player {playerNumber}, but the provided wiimote is null! Please call RemoveWiimoteFromPlayer() directly instead.");
                 RemoveWiimoteFromPlayer(playerNumber);
-                return;
+                return false;
             }
 
             PlayerWiimotes[playerNumber] = wiimote;
@@ -116,15 +116,39 @@ namespace Sparkfire.WiimoteWrapper {
             if(!assignedLights) {
                 Debug.LogWarning($"WiimoteConnectionManager could not find a corresponding light settings for player number {playerNumber}");
             }
+            return true;
         }
 
-        public void RemoveWiimoteFromPlayer(int playerNumber) {
+        public bool RemoveWiimoteFromPlayer(in int playerNumber) {
             if(playerNumber >= MaxPlayerCount) {
                 Debug.LogError($"Failed to remove wiimote from player number {playerNumber}, as it is over the set player limit of {MaxPlayerCount}!");
-                return;
+                return false;
             }
 
-            PlayerWiimotes[playerNumber] = null;
+            if(PlayerWiimotes[playerNumber] != null) {
+                PlayerWiimotes[playerNumber] = null;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
+        public void AutoAssignWiimotesToPlayers() {
+            List<Wiimote> wiimotes = AllWiimotesWithoutAPlayer;
+            int playerNumber = 0;
+            for(int i = 0; i < wiimotes.Count; i++) {
+                // SKip players that already have wiimotes
+                while(playerNumber < MaxPlayerCount && PlayerWiimotes[playerNumber] != null) {
+                    playerNumber++;
+                }
+                // If all players are assigned, this is an extra wiimote -> set wiimote to default lights
+                if(playerNumber >= MaxPlayerCount) {
+                    wiimotes[i].SendPlayerLED(defaultLightSettings.led1, defaultLightSettings.led2, defaultLightSettings.led3, defaultLightSettings.led4);
+                    continue;
+                }
+                // Assign
+                AssignWiimoteToPlayer(playerNumber, wiimotes[i]);
+            }
         }
 
         #endregion

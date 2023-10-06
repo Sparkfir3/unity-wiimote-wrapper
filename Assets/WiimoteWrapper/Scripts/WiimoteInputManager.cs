@@ -1,7 +1,6 @@
 using Sparkfire.Utility;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using UnityEngine;
 using WiimoteApi;
 
@@ -68,7 +67,22 @@ namespace Sparkfire.WiimoteWrapper {
 
         private void Update() {
             for(int i = 0; i < WiimoteConnectionManager.Instance.MaxPlayerCount; i++) {
-                // TODO - update playerWiimoteButtonEvents dictionary with input status
+                Wiimote wiimote = WiimoteConnectionManager.Instance.PlayerWiimotes[i];
+                if(wiimote == null)
+                    continue;
+
+                foreach(WiimoteButton button in buttonList) {
+                    if(GetCorrespondingWiimoteButtonPressed(wiimote, button)) { // Button pressed
+                        playerWiimoteButtonEvents[i].buttonDown[button] = !playerWiimoteButtonEvents[i].buttonHeld[button];
+                        playerWiimoteButtonEvents[i].buttonReleased[button] = false;
+                        playerWiimoteButtonEvents[i].buttonHeld[button] = true;
+
+                    } else { // Button not pressed
+                        playerWiimoteButtonEvents[i].buttonDown[button] = false;
+                        playerWiimoteButtonEvents[i].buttonReleased[button] = playerWiimoteButtonEvents[i].buttonHeld[button];
+                        playerWiimoteButtonEvents[i].buttonHeld[button] = false;
+                    }
+                }
             }
         }
 
@@ -100,7 +114,7 @@ namespace Sparkfire.WiimoteWrapper {
 
         #region [Private] Get Button Logic
 
-        private bool GetCorrespondingWiimoteButton(Wiimote wiimote, in WiimoteButton button) {
+        private bool GetCorrespondingWiimoteButtonPressed(Wiimote wiimote, in WiimoteButton button) {
             switch(button) {
                 case WiimoteButton.A:
                     return wiimote.Button.a;
@@ -133,7 +147,6 @@ namespace Sparkfire.WiimoteWrapper {
         }
         private bool GetNunchuckButton(Wiimote wiimote, in WiimoteButton button) {
             if(wiimote.current_ext != ExtensionController.NUNCHUCK) {
-                //Debug.LogError("Nunchuck not detected");
                 return false;
             }
 
