@@ -71,6 +71,15 @@ namespace Sparkfire.WiimoteWrapper {
                 if(wiimote == null)
                     continue;
 
+                // For some reason this code chunk is required to properly read data from the wiimote
+                // Don't ask me why, idk either I'm just writing the wrapper
+                int ret;
+                do {
+                    ret = wiimote.ReadWiimoteData();
+                } while(ret > 0);
+
+                // Read for button presses
+                // We must track this constantly so that we can know when buttons have just been pressed & released
                 foreach(WiimoteButton button in buttonList) {
                     if(GetCorrespondingWiimoteButtonPressed(wiimote, button)) { // Button pressed
                         playerWiimoteButtonEvents[i].buttonDown[button] = !playerWiimoteButtonEvents[i].buttonHeld[button];
@@ -241,6 +250,7 @@ namespace Sparkfire.WiimoteWrapper {
             }
 
             float[] points = wiimote.Ir.GetPointingPosition();
+            Debug.Log(points.Length + ": " + points[0] + " / " + points[1]);
             return new Vector2(points[0], points[1]);
         }
 

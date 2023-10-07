@@ -37,7 +37,7 @@ namespace Sparkfire.WiimoteWrapper {
         private List<WiimoteLightSettings> wiimoteLights;
         
         // --- Runtime Data ---
-        public Dictionary<int, Wiimote> PlayerWiimotes { get; private set; }
+        public Dictionary<int, Wiimote> PlayerWiimotes { get; protected set; }
 
         // ------------------------------------------------------------------------------------
 
@@ -57,11 +57,14 @@ namespace Sparkfire.WiimoteWrapper {
             for(int i = 0; i < MaxPlayerCount; i++) {
                 PlayerWiimotes.Add(i, null);
             }
+
+            FindAndSetupWiimotes(false);
+            AutoAssignWiimotesToPlayers();
         }
 
         private void OnApplicationQuit() {
-            foreach(Wiimote wiimote in WiimoteManager.Wiimotes) {
-                WiimoteManager.Cleanup(wiimote);
+            for(int i = WiimoteManager.Wiimotes.Count - 1; i >= 0; i--) {
+                WiimoteManager.Cleanup(WiimoteManager.Wiimotes[i]);
             }
         }
 
@@ -157,6 +160,8 @@ namespace Sparkfire.WiimoteWrapper {
 
         #region [Public] Get/Read Data
         
+        public static bool PlayerHasWiimote(int playerNumber) => playerNumber < Instance.MaxPlayerCount && Instance.PlayerWiimotes[playerNumber] != null;
+
         public List<int> AllPlayersWithoutAWiimote => PlayerWiimotes.Where(x => x.Value == null).Select(x => x.Key).ToList();
 
         public List<Wiimote> AllWiimotesWithoutAPlayer => WiimoteManager.Wiimotes.Where(x => x != null && !PlayerWiimotes.ContainsValue(x)).ToList();
