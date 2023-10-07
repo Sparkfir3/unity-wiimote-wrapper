@@ -250,7 +250,6 @@ namespace Sparkfire.WiimoteWrapper {
             }
 
             float[] points = wiimote.Ir.GetPointingPosition();
-            Debug.Log(points.Length + ": " + points[0] + " / " + points[1]);
             return new Vector2(points[0], points[1]);
         }
 
