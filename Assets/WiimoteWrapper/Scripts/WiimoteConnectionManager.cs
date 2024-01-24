@@ -6,7 +6,7 @@ using WiimoteApi;
 
 namespace Sparkfire.WiimoteWrapper {
 
-    [DefaultExecutionOrder(-11000)]
+    [DefaultExecutionOrder(-11000), RequireComponent(typeof(WiimoteInputManager))]
     public class WiimoteConnectionManager : MonoBehaviour {
 
         public static WiimoteConnectionManager Instance;
@@ -15,11 +15,19 @@ namespace Sparkfire.WiimoteWrapper {
 
         [System.Serializable]
         private struct WiimoteLightSettings {
-            public int playerNumber;
+            public int playerID;
             public bool led1;
             public bool led2;
             public bool led3;
             public bool led4;
+
+            public WiimoteLightSettings(int playerID, WiimoteLightSettings otherLights) {
+                this.playerID = playerID;
+                led1 = otherLights.led1;
+                led2 = otherLights.led2;
+                led3 = otherLights.led3;
+                led4 = otherLights.led4;
+            }
         }
 
         #endregion
@@ -31,7 +39,7 @@ namespace Sparkfire.WiimoteWrapper {
         public int MaxPlayerCount { get; protected set; } = 4;
         [SerializeField]
         [Tooltip("The default light settings for a connected wiimote without an assigned player")]
-        private WiimoteLightSettings defaultLightSettings = new() { playerNumber = -1, led1 = true, led2 = true, led3 = true, led4 = true };
+        private WiimoteLightSettings defaultLightSettings = new() { playerID = -1, led1 = true, led2 = true, led3 = true, led4 = true };
         [SerializeField]
         [Tooltip("Controls which lights are enabled for each player number")]
         private List<WiimoteLightSettings> wiimoteLights;
@@ -47,7 +55,8 @@ namespace Sparkfire.WiimoteWrapper {
             #region Singleton
             if(Instance == null) {
                 Instance = this;
-                DontDestroyOnLoad(gameObject);
+                WiimoteInputManager.Instance = GetComponent<WiimoteInputManager>();
+                DontDestroyOnLoad(transform.root.gameObject);
             } else if(Instance != this) {
                 Destroy(gameObject);
             }
@@ -57,9 +66,6 @@ namespace Sparkfire.WiimoteWrapper {
             for(int i = 0; i < MaxPlayerCount; i++) {
                 PlayerWiimotes.Add(i, null);
             }
-
-            FindAndSetupWiimotes(false);
-            AutoAssignWiimotesToPlayers();
         }
 
         private void OnApplicationQuit() {
@@ -68,10 +74,24 @@ namespace Sparkfire.WiimoteWrapper {
             }
         }
 
+#if UNITY_EDITOR
+        private void OnValidate() {
+            if(MaxPlayerCount < 0) {
+                MaxPlayerCount = 0;
+            }
+            while(wiimoteLights.Count < MaxPlayerCount) {
+                wiimoteLights.Add(new WiimoteLightSettings(wiimoteLights.Count, defaultLightSettings));
+            }
+            while(wiimoteLights.Count > MaxPlayerCount) {
+                wiimoteLights.RemoveAt(wiimoteLights.Count - 1);
+            }
+        }
+#endif
+
         #endregion
 
         // ------------------------------------------------------------------------------------
-        
+
         #region [Public] Setup and Assignment
 
         public void FindAndSetupWiimotes(in bool assignDefaultLights = true) {
@@ -81,7 +101,7 @@ namespace Sparkfire.WiimoteWrapper {
         public void FindAndSetupWiimotes(in bool assignDefaultLights, in InputDataType inputDataType, in IRDataType irDataType) {
             WiimoteManager.FindWiimotes();
             if(!WiimoteManager.HasWiimote()) {
-                Debug.Log("No wiimotes found, nothing to setup!");
+                //Debug.Log("No wiimotes found, nothing to setup!");
                 return;
             }
 
@@ -95,41 +115,41 @@ namespace Sparkfire.WiimoteWrapper {
             }
         }
 
-        public bool AssignWiimoteToPlayer(in int playerNumber, Wiimote wiimote) {
-            if(playerNumber >= MaxPlayerCount) {
-                Debug.LogError($"Failed to assign wiimote to player number {playerNumber}, as it is over the set player limit of {MaxPlayerCount}!");
+        public bool AssignWiimoteToPlayer(in int playerID, Wiimote wiimote) {
+            if(playerID >= MaxPlayerCount) {
+                Debug.LogError($"Failed to assign wiimote to player number {playerID}, as it is over the set player limit of {MaxPlayerCount}!");
                 return false;
             }
             if(wiimote == null) {
-                Debug.LogError($"Assigning a wiimote to player {playerNumber}, but the provided wiimote is null! Please call RemoveWiimoteFromPlayer() directly instead.");
-                RemoveWiimoteFromPlayer(playerNumber);
+                Debug.LogError($"Assigning a wiimote to player {playerID}, but the provided wiimote is null! Please call RemoveWiimoteFromPlayer() directly instead.");
+                RemoveWiimoteFromPlayer(playerID);
                 return false;
             }
 
-            PlayerWiimotes[playerNumber] = wiimote;
+            PlayerWiimotes[playerID] = wiimote;
             // Fetch light settings
             bool assignedLights = false;
             foreach(WiimoteLightSettings lightSettings in wiimoteLights) {
-                if(lightSettings.playerNumber == playerNumber) {
+                if(lightSettings.playerID == playerID) {
                     assignedLights = true;
                     wiimote.SendPlayerLED(lightSettings.led1, lightSettings.led2, lightSettings.led3, lightSettings.led4);
                     break;
                 }
             }
             if(!assignedLights) {
-                Debug.LogWarning($"WiimoteConnectionManager could not find a corresponding light settings for player number {playerNumber}");
+                Debug.LogWarning($"WiimoteConnectionManager could not find a corresponding light settings for player number {playerID}");
             }
             return true;
         }
 
-        public bool RemoveWiimoteFromPlayer(in int playerNumber) {
-            if(playerNumber >= MaxPlayerCount) {
-                Debug.LogError($"Failed to remove wiimote from player number {playerNumber}, as it is over the set player limit of {MaxPlayerCount}!");
+        public bool RemoveWiimoteFromPlayer(in int playerID) {
+            if(playerID >= MaxPlayerCount) {
+                Debug.LogError($"Failed to remove wiimote from player number {playerID}, as it is over the set player limit of {MaxPlayerCount}!");
                 return false;
             }
 
-            if(PlayerWiimotes[playerNumber] != null) {
-                PlayerWiimotes[playerNumber] = null;
+            if(PlayerWiimotes[playerID] != null) {
+                PlayerWiimotes[playerID] = null;
                 return true;
             } else {
                 return false;
@@ -138,19 +158,19 @@ namespace Sparkfire.WiimoteWrapper {
 
         public void AutoAssignWiimotesToPlayers() {
             List<Wiimote> wiimotes = AllWiimotesWithoutAPlayer;
-            int playerNumber = 0;
+            int playerID = 0;
             for(int i = 0; i < wiimotes.Count; i++) {
                 // SKip players that already have wiimotes
-                while(playerNumber < MaxPlayerCount && PlayerWiimotes[playerNumber] != null) {
-                    playerNumber++;
+                while(playerID < MaxPlayerCount && PlayerWiimotes[playerID] != null) {
+                    playerID++;
                 }
                 // If all players are assigned, this is an extra wiimote -> set wiimote to default lights
-                if(playerNumber >= MaxPlayerCount) {
+                if(playerID >= MaxPlayerCount) {
                     wiimotes[i].SendPlayerLED(defaultLightSettings.led1, defaultLightSettings.led2, defaultLightSettings.led3, defaultLightSettings.led4);
                     continue;
                 }
                 // Assign
-                AssignWiimoteToPlayer(playerNumber, wiimotes[i]);
+                AssignWiimoteToPlayer(playerID, wiimotes[i]);
             }
         }
 
@@ -160,7 +180,7 @@ namespace Sparkfire.WiimoteWrapper {
 
         #region [Public] Get/Read Data
         
-        public static bool PlayerHasWiimote(int playerNumber) => playerNumber < Instance.MaxPlayerCount && Instance.PlayerWiimotes[playerNumber] != null;
+        public static bool PlayerHasWiimote(int playerID) => playerID < Instance.MaxPlayerCount && Instance.PlayerWiimotes[playerID] != null;
 
         public List<int> AllPlayersWithoutAWiimote => PlayerWiimotes.Where(x => x.Value == null).Select(x => x.Key).ToList();
 

@@ -47,28 +47,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   <MaxPlayerCount>k__BackingField: 4
   defaultLightSettings:
-    playerNumber: -1
+    playerID: -1
     led1: 1
     led2: 1
     led3: 1
     led4: 1
   wiimoteLights:
-  - playerNumber: 0
+  - playerID: 0
     led1: 1
     led2: 0
     led3: 0
     led4: 0
-  - playerNumber: 1
+  - playerID: 1
     led1: 0
     led2: 1
     led3: 0
     led4: 0
-  - playerNumber: 2
+  - playerID: 2
     led1: 0
     led2: 0
     led3: 1
     led4: 0
-  - playerNumber: 3
+  - playerID: 3
     led1: 0
     led2: 0
     led3: 0
@@ -85,3 +85,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2f217e21f01a43428413a48ff495a45, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  debugMode: 0
